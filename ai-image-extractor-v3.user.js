@@ -1,10 +1,12 @@
 // ==UserScript==
-// @name         AI Image Generator - freeaiimage.net 专用提取器 v3.0
+// @name         AI Image Generator - freeaiimage.net 专用提取器 v3.1
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  专门针对freeaiimage.net网站，精准提取AI图片生成API数据和图片URL
 // @author       AI助手
 // @match        https://freeaiimage.net/zh/*
+// @match        https://freeaiimage.net/*
+// @match        https://freeaiimage.net/zh
 // @grant        GM_notification
 // @grant        GM_addStyle
 // @grant        GM_setValue
@@ -17,7 +19,7 @@
 
     // 配置
     const CONFIG = {
-        debugMode: false,
+        debugMode: true,  // 开启调试模式
         autoExport: false,
         exportFormat: 'json'
     };
@@ -148,13 +150,19 @@
         }
     `;
 
-    // 初始化
+    // 立即初始化（不需要等待DOM）
     function init() {
-        log('开始初始化freeaiimage.net提取器...');
+        log('🚀 开始初始化freeaiimage.net提取器...');
+        log(`当前页面: ${window.location.href}`);
         GM_addStyle(styles);
         createUI();
         startAPIMonitoring();
-        log('提取器初始化完成');
+        log('✅ 提取器初始化完成，正在监听...');
+        
+        // 显示启动通知
+        setTimeout(() => {
+            showNotification('已启动', 'AI图片提取器v3.1已就绪');
+        }, 1000);
     }
 
     // 创建用户界面
@@ -165,7 +173,7 @@
         
         panel.innerHTML = `
             <div class="ai-extractor-header">
-                <h3 class="ai-extractor-title">📊 AI图片提取器 v3.0</h3>
+                <h3 class="ai-extractor-title">📊 AI图片提取器 v3.1</h3>
             </div>
             <div class="ai-extractor-content">
                 <div class="ai-extractor-status" id="extractor-status">
@@ -234,8 +242,10 @@
         });
     }
 
-    // 启动API监控
+    // 启动API监控（立即开始）
     function startAPIMonitoring() {
+        log('🔧 开始设置API监控...');
+
         // 拦截 XMLHttpRequest (主要方法)
         const originalXHROpen = XMLHttpRequest.prototype.open;
         const originalXHRSend = XMLHttpRequest.prototype.send;
@@ -243,18 +253,26 @@
         XMLHttpRequest.prototype.open = function(method, url) {
             this._method = method;
             this._url = url;
+            this._startTime = Date.now();
+            
+            log(`📤 检测到XHR请求: ${method} ${url}`);
+            
             return originalXHROpen.apply(this, arguments);
         };
 
         XMLHttpRequest.prototype.send = function(data) {
             this.addEventListener('readystatechange', function() {
                 if (this.readyState === 4) {
+                    const responseTime = Date.now() - (this._startTime || Date.now());
+                    log(`📥 XHR响应: ${this._method} ${this._url} (${responseTime}ms) Status: ${this.status}`);
                     handleXHRResponse(this._method, this._url, data, this.responseText, this.status);
                 }
             });
             
             this.addEventListener('loadend', function() {
                 if (this.status >= 200 && this.status < 300) {
+                    const responseTime = Date.now() - (this._startTime || Date.now());
+                    log(`📥 XHR成功响应: ${this._method} ${this._url} (${responseTime}ms)`);
                     handleXHRResponse(this._method, this._url, data, this.responseText, this.status);
                 }
             });
@@ -266,53 +284,82 @@
         const originalFetch = window.fetch;
         window.fetch = function(...args) {
             const [url, options] = args;
+            log(`📤 检测到Fetch请求: ${options?.method || 'GET'} ${url}`);
+            
             return originalFetch.apply(this, args).then(response => {
                 if (response.ok) {
+                    const startTime = Date.now();
                     response.clone().text().then(text => {
+                        const responseTime = Date.now() - startTime;
+                        log(`📥 Fetch响应: ${options?.method || 'GET'} ${url} (${responseTime}ms) Status: ${response.status}`);
                         handleFetchResponse(url, options, text);
                     });
                 }
                 return response;
+            }).catch(error => {
+                log(`❌ Fetch错误: ${error.message}`);
+                throw error;
             });
         };
 
-        log('API监控已启动');
+        log('✅ API监控设置完成');
     }
 
     // 处理XMLHttpRequest响应
     function handleXHRResponse(method, url, requestData, responseText, status) {
-        if (!isValidTaskURL(url)) return;
+        log(`🔍 检查XHR响应: ${method} ${url}`);
+        
+        if (!isValidTaskURL(url)) {
+            log(`❌ 不是有效的任务URL: ${url}`);
+            return;
+        }
+        
+        log(`✅ 匹配到有效任务URL: ${url}`);
         
         try {
             const responseData = JSON.parse(responseText);
+            log(`📄 解析JSON响应数据:`, responseData);
             processAPIData(method, url, requestData, responseData, status);
         } catch (error) {
-            log(`解析响应数据失败: ${error.message}`);
+            log(`❌ 解析响应数据失败: ${error.message}`);
         }
     }
 
     // 处理fetch响应
     function handleFetchResponse(url, options, responseText) {
-        if (!isValidTaskURL(url)) return;
+        log(`🔍 检查Fetch响应: ${options?.method || 'GET'} ${url}`);
+        
+        if (!isValidTaskURL(url)) {
+            log(`❌ 不是有效的任务URL: ${url}`);
+            return;
+        }
+        
+        log(`✅ 匹配到有效任务URL: ${url}`);
         
         try {
             const responseData = JSON.parse(responseText);
+            log(`📄 解析JSON响应数据:`, responseData);
             const method = options?.method || 'GET';
             processAPIData(method, url, options?.body, responseData, 200);
         } catch (error) {
-            log(`解析fetch响应失败: ${error.message}`);
+            log(`❌ 解析fetch响应失败: ${error.message}`);
         }
     }
 
-    // 检查是否为有效的任务URL
+    // 检查是否为有效的任务URL (修复参数名)
     function isValidTaskURL(url) {
-        return url && (url.includes('task?task_id=') || url.includes('/task?') || url.includes('task?task='));
+        return url && (url.includes('taskld=') || url.includes('task_id='));
     }
 
     // 处理API数据
     function processAPIData(method, url, requestData, responseData, status) {
         const taskId = extractTaskId(url);
-        if (!taskId) return;
+        if (!taskId) {
+            log(`❌ 无法提取任务ID从URL: ${url}`);
+            return;
+        }
+
+        log(`📋 处理API数据 - 任务ID: ${taskId}`);
 
         const apiData = {
             task_id: taskId,
@@ -333,12 +380,16 @@
             response_status: status
         };
 
+        log(`📊 提取的数据:`, apiData);
+
         // 合并或添加新的API数据
         const existingIndex = interceptedRequests.findIndex(item => item.task_id === taskId);
         if (existingIndex >= 0) {
             interceptedRequests[existingIndex] = { ...interceptedRequests[existingIndex], ...apiData };
+            log(`🔄 更新现有请求数据: ${taskId}`);
         } else {
             interceptedRequests.push(apiData);
+            log(`➕ 添加新的请求数据: ${taskId}`);
         }
 
         // 如果是完成的请求，添加到提取数据中
@@ -357,7 +408,7 @@
             const sessionExists = extractedData.find(item => item.task_id === taskId);
             if (!sessionExists) {
                 extractedData.push(sessionData);
-                log(`捕获到完成的任务: ${taskId}, 图片数量: ${apiData.image_urls.length}`);
+                log(`🎉 捕获到完成的任务: ${taskId}, 图片数量: ${apiData.image_urls.length}`);
                 showNotification('成功', `捕获到新的图片生成: ${apiData.params.prompt}`);
             }
         }
@@ -365,10 +416,33 @@
         updateUI();
     }
 
-    // 提取任务ID
+    // 提取任务ID (修复参数名)
     function extractTaskId(url) {
-        const match = url.match(/[?&]task[_-]?id=([a-zA-Z0-9\-]+)/) || url.match(/([a-f0-9]{32})/);
-        return match ? match[1] : null;
+        log(`🔍 提取任务ID从URL: ${url}`);
+        
+        // 尝试匹配 taskld= 参数
+        let match = url.match(/[?&]taskld=([a-fA-F0-9\-]+)/);
+        if (match) {
+            log(`✅ 从taskld参数提取到任务ID: ${match[1]}`);
+            return match[1];
+        }
+        
+        // 尝试匹配 task_id= 参数
+        match = url.match(/[?&]task_id=([a-fA-F0-9\-]+)/);
+        if (match) {
+            log(`✅ 从task_id参数提取到任务ID: ${match[1]}`);
+            return match[1];
+        }
+        
+        // 尝试匹配32位十六进制ID
+        match = url.match(/([a-fA-F0-9]{32})/);
+        if (match) {
+            log(`✅ 从URL中提取到32位ID: ${match[1]}`);
+            return match[1];
+        }
+        
+        log(`❌ 未能从URL中提取到任务ID`);
+        return null;
     }
 
     // 更新UI
@@ -388,13 +462,13 @@
         let statusClass = '';
         
         if (latestRequest.status === 'completed') {
-            statusText = '✅ 生成完成';
+            statusText = `✅ 生成完成 (${interceptedRequests.length}个请求)`;
             statusClass = 'ai-extractor-status success';
         } else if (latestRequest.status === 'processing') {
             statusText = '⏳ 生成中...';
             statusClass = 'ai-extractor-status pending';
         } else {
-            statusText = '⚠️ 状态未知';
+            statusText = `⚠️ 状态: ${latestRequest.status}`;
             statusClass = 'ai-extractor-status';
         }
         
@@ -476,13 +550,11 @@
     }
 
     // 日志记录
-    function log(message) {
-        if (CONFIG.debugMode) {
-            console.log('[AI Extractor v3]', message);
-        }
+    function log(...args) {
+        console.log('[AI Extractor v3.1]', ...args);
     }
 
-    // 启动
+    // 立即启动
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
