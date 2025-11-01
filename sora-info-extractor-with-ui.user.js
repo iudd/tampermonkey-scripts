@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Sora Info Extractor with UI v2.2
+// @name         Sora Info Extractor with UI v2.3
 // @namespace    http://tampermonkey.net/
-// @version      2.2
-// @description  Extract useful information from https://sora.chatgpt.com/ with smaller movable UI
+// @version      2.3
+// @description  Extract useful information from https://sora.chatgpt.com/ with movable UI and hints
 // @author       iudd
 // @match        https://sora.chatgpt.com/*
 // @grant        GM_xmlhttpRequest
@@ -31,7 +31,7 @@
     panel.style.color = '#000';
     document.body.appendChild(panel);
 
-    // 面板标题栏 - 添加关闭按钮
+    // 面板标题栏 - 添加关闭按钮和拖拽提示
     const titleBar = document.createElement('div');
     titleBar.style.backgroundColor = '#007bff';
     titleBar.style.color = '#fff';
@@ -45,7 +45,7 @@
     panel.appendChild(titleBar);
 
     const titleText = document.createElement('span');
-    titleText.textContent = 'Sora信息提取器 v2.2';
+    titleText.textContent = 'Sora信息提取器 v2.3 (拖拽移动)';
     titleBar.appendChild(titleText);
 
     const closeBtn = document.createElement('button');
@@ -125,9 +125,9 @@
         isDragging = false;
     });
 
-    // 页面加载后提取信息
+    // 页面加载后提取信息 - 增加延迟
     window.addEventListener('load', function() {
-        content.textContent = '正在提取信息，请稍候...';
+        content.textContent = '正在提取信息，请稍候（可能需要10-15秒）...';
         try {
             extractAndDisplayInfo();
         } catch (error) {
@@ -158,9 +158,10 @@
 
         monitorNetworkRequests(info.networkRequests);
 
+        // 延长延迟到15秒，确保动态内容加载
         setTimeout(() => {
             displayInfo(info);
-        }, 8000); // 增加延迟到8秒，确保捕获更多
+        }, 15000);
     }
 
     function extractStorage(storage) {
