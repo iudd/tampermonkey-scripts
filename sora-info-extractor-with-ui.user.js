@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sora Info Extractor with UI v2
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Extract useful information from https://sora.chatgpt.com/ with improved movable UI
 // @author       iudd
 // @match        https://sora.chatgpt.com/*
@@ -45,7 +45,7 @@
     panel.appendChild(titleBar);
 
     const titleText = document.createElement('span');
-    titleText.textContent = 'Sora信息提取器 v2';
+    titleText.textContent = 'Sora信息提取器 v2.1';
     titleBar.appendChild(titleText);
 
     const closeBtn = document.createElement('button');
@@ -238,18 +238,22 @@
     }
 
     function extractOtherElements() {
-        const selectors = ['div[role]', 'span[data-*]', '[data-testid]', '[aria-label]', '[data-cy]', 'input[name]', 'textarea[name]'];
+        const selectors = ['div[role]', 'span', '[data-testid]', '[aria-label]', '[data-cy]', 'input[name]', 'textarea[name]'];
         const elements = [];
         selectors.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => {
-                elements.push({
-                    tag: el.tagName.toLowerCase(),
-                    className: el.className,
-                    id: el.id,
-                    text: el.textContent.trim().substring(0, 300),
-                    attributes: Array.from(el.attributes).slice(0, 10).map(attr => ({ name: attr.name, value: attr.value }))
+            try {
+                document.querySelectorAll(selector).forEach(el => {
+                    elements.push({
+                        tag: el.tagName.toLowerCase(),
+                        className: el.className,
+                        id: el.id,
+                        text: el.textContent.trim().substring(0, 300),
+                        attributes: Array.from(el.attributes).slice(0, 10).map(attr => ({ name: attr.name, value: attr.value }))
+                    });
                 });
-            });
+            } catch (e) {
+                console.warn('Invalid selector:', selector, e);
+            }
         });
         return elements.slice(0, 100);
     }
