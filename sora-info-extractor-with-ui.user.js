@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Sora Info Extractor with UI v2
+// @name         Sora Info Extractor with UI v2.2
 // @namespace    http://tampermonkey.net/
-// @version      2.1
-// @description  Extract useful information from https://sora.chatgpt.com/ with improved movable UI
+// @version      2.2
+// @description  Extract useful information from https://sora.chatgpt.com/ with smaller movable UI
 // @author       iudd
 // @match        https://sora.chatgpt.com/*
 // @grant        GM_xmlhttpRequest
@@ -12,14 +12,14 @@
 (function() {
     'use strict';
 
-    // 创建可移动UI面板 - 改进样式
+    // 创建可移动UI面板 - 更小尺寸
     const panel = document.createElement('div');
     panel.id = 'info-extractor-panel';
     panel.style.position = 'fixed';
-    panel.style.top = '20px';
-    panel.style.right = '20px';
-    panel.style.width = '450px';
-    panel.style.height = '550px';
+    panel.style.top = '10px';
+    panel.style.left = '10px';
+    panel.style.width = '350px';
+    panel.style.height = '400px';
     panel.style.backgroundColor = '#ffffff';
     panel.style.border = '2px solid #333';
     panel.style.borderRadius = '10px';
@@ -35,7 +35,7 @@
     const titleBar = document.createElement('div');
     titleBar.style.backgroundColor = '#007bff';
     titleBar.style.color = '#fff';
-    titleBar.style.padding = '10px';
+    titleBar.style.padding = '8px';
     titleBar.style.fontWeight = 'bold';
     titleBar.style.cursor = 'move';
     titleBar.style.userSelect = 'none';
@@ -45,7 +45,7 @@
     panel.appendChild(titleBar);
 
     const titleText = document.createElement('span');
-    titleText.textContent = 'Sora信息提取器 v2.1';
+    titleText.textContent = 'Sora信息提取器 v2.2';
     titleBar.appendChild(titleText);
 
     const closeBtn = document.createElement('button');
@@ -53,48 +53,50 @@
     closeBtn.style.background = 'none';
     closeBtn.style.border = 'none';
     closeBtn.style.color = '#fff';
-    closeBtn.style.fontSize = '20px';
+    closeBtn.style.fontSize = '18px';
     closeBtn.style.cursor = 'pointer';
     closeBtn.addEventListener('click', () => panel.remove());
     titleBar.appendChild(closeBtn);
 
-    // 内容区域
+    // 内容区域 - 调整高度
     const content = document.createElement('div');
-    content.style.height = '420px';
+    content.style.height = '280px';
     content.style.overflowY = 'auto';
-    content.style.padding = '15px';
-    content.style.fontSize = '13px';
-    content.style.lineHeight = '1.4';
+    content.style.padding = '10px';
+    content.style.fontSize = '12px';
+    content.style.lineHeight = '1.3';
     content.style.backgroundColor = '#f9f9f9';
     panel.appendChild(content);
 
     // 按钮区域
     const buttonBar = document.createElement('div');
-    buttonBar.style.padding = '15px';
+    buttonBar.style.padding = '10px';
     buttonBar.style.borderTop = '1px solid #ccc';
     buttonBar.style.display = 'flex';
     buttonBar.style.justifyContent = 'space-between';
-    buttonBar.style.gap = '10px';
+    buttonBar.style.gap = '5px';
     panel.appendChild(buttonBar);
 
     const viewScriptsBtn = document.createElement('button');
     viewScriptsBtn.textContent = '查看脚本库';
-    viewScriptsBtn.style.padding = '8px 12px';
+    viewScriptsBtn.style.padding = '6px 10px';
     viewScriptsBtn.style.cursor = 'pointer';
     viewScriptsBtn.style.backgroundColor = '#28a745';
     viewScriptsBtn.style.color = '#fff';
     viewScriptsBtn.style.border = 'none';
-    viewScriptsBtn.style.borderRadius = '5px';
+    viewScriptsBtn.style.borderRadius = '4px';
+    viewScriptsBtn.style.fontSize = '12px';
     buttonBar.appendChild(viewScriptsBtn);
 
     const downloadBtn = document.createElement('button');
     downloadBtn.textContent = '下载信息';
-    downloadBtn.style.padding = '8px 12px';
+    downloadBtn.style.padding = '6px 10px';
     downloadBtn.style.cursor = 'pointer';
     downloadBtn.style.backgroundColor = '#dc3545';
     downloadBtn.style.color = '#fff';
     downloadBtn.style.border = 'none';
-    downloadBtn.style.borderRadius = '5px';
+    downloadBtn.style.borderRadius = '4px';
+    downloadBtn.style.fontSize = '12px';
     buttonBar.appendChild(downloadBtn);
 
     // 拖拽功能
