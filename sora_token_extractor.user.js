@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Sora Token Extractor
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
-// @description  Extract and copy Access Token from sora.chatgpt.com cookies with improved detection
+// @version      1.3.0
+// @description  Extract and copy Access Token from chatgpt.com cookies across domains
 // @author       iudd
-// @match        https://sora.chatgpt.com/*
+// @match        *://*.chatgpt.com/*
 // @grant        GM_setClipboard
 // @grant        GM_notification
+// @grant        GM_cookie
 // @run-at       document-end
 // @license      MIT
 // ==/UserScript==
@@ -14,16 +15,18 @@
 (function() {
     'use strict';
 
-    // 获取Cookie值的函数
+    // 获取Cookie值的函数（使用GM_cookie跨域获取）
     function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-        return null;
+        return new Promise((resolve) => {
+            GM_cookie.list({}, function(cookies) {
+                const cookie = cookies.find(c => c.name === name);
+                resolve(cookie ? cookie.value : null);
+            });
+        });
     }
 
     // 复制Token的函数
-    function copySecureNextAuthToken(token) {
+    async function copySecureNextAuthToken(token) {
         if (token) {
             // 复制到剪贴板
             GM_setClipboard(token, 'text');
@@ -46,13 +49,16 @@
                 timeout: 3000
             });
             showNotification('未找到 Cookie，请确保已登录');
-            console.log('所有Cookie:', document.cookie);
+            // 输出所有cookie供调试
+            GM_cookie.list({}, function(cookies) {
+                console.log('所有Cookie:', cookies.map(c => `${c.name}=${c.value}`).join('; '));
+            });
         }
     }
 
     // 检查Cookie的函数
-    function checkCookie() {
-        const token = getCookie('__Secure-next-auth.session-token');
+    async function checkCookie() {
+        const token = await getCookie('__Secure-next-auth.session-token');
         if (token) {
             copySecureNextAuthToken(token);
             return true; // 找到，停止检查
@@ -115,15 +121,15 @@
             z-index: 10000;
             font-size: 12px;
         `;
-        button.addEventListener('click', function() {
-            const token = getCookie('__Secure-next-auth.session-token');
+        button.addEventListener('click', async function() {
+            const token = await getCookie('__Secure-next-auth.session-token');
             copySecureNextAuthToken(token);
         });
         document.body.appendChild(button);
     }
 
     // 创建面板的函数（可选，用于显示Token）
-    function createPanel() {
+    async function createPanel() {
         // 检查是否已存在面板
         if (document.getElementById('sora-token-panel')) return;
 
@@ -182,7 +188,7 @@
         panel.appendChild(header);
 
         // 获取Token
-        const accessToken = getCookie('__Secure-next-auth.session-token');
+        const accessToken = await getCookie('__Secure-next-auth.session-token');
 
         // Token 显示区域
         const tokenSection = document.createElement('div');
@@ -273,22 +279,27 @@
     // 页面加载完成后执行
     window.addEventListener('load', function() {
         // 延迟5秒开始检查
-        setTimeout(function() {
+        setTimeout(async function() {
             // 循环检查cookie，每1秒检查一次，最多10次
             let attempts = 0;
             const maxAttempts = 10;
-            const interval = setInterval(() => {
+            const interval = setInterval(async () => {
                 attempts++;
                 console.log(`检查Cookie尝试 ${attempts}/${maxAttempts}`);
-                if (checkCookie() || attempts >= maxAttempts) {
+                if (await checkCookie() || attempts >= maxAttempts) {
                     clearInterval(interval);
-                    if (attempts >= maxAttempts && !getCookie('__Secure-next-auth.session-token')) {
-                        console.log('所有Cookie:', document.cookie);
-                        GM_notification({
-                            text: '多次尝试后仍未找到Cookie，请检查登录状态',
-                            title: '检测失败',
-                            timeout: 5000
-                        });
+                    if (attempts >= maxAttempts) {
+                        const token = await getCookie('__Secure-next-auth.session-token');
+                        if (!token) {
+                            GM_cookie.list({}, function(cookies) {
+                                console.log('所有Cookie:', cookies.map(c => `${c.name}=${c.value}`).join('; '));
+                            });
+                            GM_notification({
+                                text: '多次尝试后仍未找到Cookie，请检查登录状态',
+                                title: '检测失败',
+                                timeout: 5000
+                            });
+                        }
                     }
                 }
             }, 1000);
