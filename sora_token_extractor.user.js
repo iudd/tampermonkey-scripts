@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Sora Token Extractor
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
-// @description  Extract Access Token and Refresh Token from sora.chatgpt.com cookies
+// @version      1.1.0
+// @description  Extract and copy Access Token from sora.chatgpt.com cookies
 // @author       iudd
 // @match        https://sora.chatgpt.com/*
-// @grant        none
+// @grant        GM_setClipboard
+// @grant        GM_notification
+// @run-at       document-end
 // @license      MIT
 // ==/UserScript==
 
@@ -20,7 +22,97 @@
         return null;
     }
 
-    // 创建面板的函数
+    // 复制Token的函数
+    function copySecureNextAuthToken() {
+        const token = getCookie('__Secure-next-auth.session-token');
+
+        if (token) {
+            // 复制到剪贴板
+            GM_setClipboard(token, 'text');
+
+            // 显示Tampermonkey通知
+            GM_notification({
+                text: 'Token 已复制到剪贴板！\n前50个字符：' + token.substring(0, 50) + '...',
+                title: '复制成功',
+                timeout: 3000
+            });
+
+            // 在页面右上角显示提示
+            showNotification('__Secure-next-auth.session-token 已复制到剪贴板！');
+
+            console.log('Token 值：', token);
+        } else {
+            GM_notification({
+                text: '未找到 __Secure-next-auth.session-token Cookie',
+                title: '复制失败',
+                timeout: 3000
+            });
+            showNotification('未找到 Cookie，请确保已登录');
+        }
+    }
+
+    // 在页面右上角显示通知
+    function showNotification(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            z-index: 10001;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease;
+        `;
+
+        // 添加动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // 5秒后自动移除
+        setTimeout(() => {
+            notification.style.animation = 'slideIn 0.3s ease reverse';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
+
+    // 在页面上添加一个复制按钮以便手动复制
+    function addCopyButton() {
+        const button = document.createElement('button');
+        button.textContent = '复制 Token';
+        button.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 10000;
+            font-size: 12px;
+        `;
+        button.addEventListener('click', function() {
+            copySecureNextAuthToken();
+        });
+        document.body.appendChild(button);
+    }
+
+    // 创建面板的函数（可选，用于显示Token）
     function createPanel() {
         // 检查是否已存在面板
         if (document.getElementById('sora-token-panel')) return;
@@ -29,7 +121,7 @@
         panel.id = 'sora-token-panel';
         panel.style.cssText = `
             position: fixed;
-            top: 20px;
+            top: 80px;
             right: 20px;
             width: 350px;
             background: rgba(0, 0, 0, 0.9);
@@ -81,29 +173,27 @@
 
         // 获取Token
         const accessToken = getCookie('__Secure-next-auth.session-token');
-        const refreshToken = getCookie('__Secure-next-auth.refresh-token') || getCookie('__Secure-next-auth.session-token'); // 假设RT与AT相同或另有cookie
 
-        // Access Token 区域
-        const atSection = document.createElement('div');
-        atSection.style.marginBottom = '10px';
+        // Token 显示区域
+        const tokenSection = document.createElement('div');
 
-        const atLabel = document.createElement('div');
-        atLabel.textContent = 'Access Token (AT):';
-        atLabel.style.marginBottom = '5px';
-        atLabel.style.fontWeight = 'bold';
+        const label = document.createElement('div');
+        label.textContent = 'Access Token (AT):';
+        label.style.marginBottom = '5px';
+        label.style.fontWeight = 'bold';
 
-        const atContainer = document.createElement('div');
-        atContainer.style.cssText = `
+        const container = document.createElement('div');
+        container.style.cssText = `
             display: flex;
             align-items: center;
             margin-bottom: 5px;
         `;
 
-        const atInput = document.createElement('input');
-        atInput.type = 'text';
-        atInput.value = accessToken || 'Not found';
-        atInput.readOnly = true;
-        atInput.style.cssText = `
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = accessToken || 'Not found';
+        input.readOnly = true;
+        input.style.cssText = `
             flex: 1;
             padding: 5px;
             background: #333;
@@ -113,9 +203,9 @@
             font-size: 11px;
         `;
 
-        const atCopyBtn = document.createElement('button');
-        atCopyBtn.textContent = '复制';
-        atCopyBtn.style.cssText = `
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = '复制';
+        copyBtn.style.cssText = `
             margin-left: 5px;
             padding: 5px 10px;
             background: #007bff;
@@ -125,71 +215,18 @@
             cursor: pointer;
             font-size: 11px;
         `;
-        atCopyBtn.onclick = () => {
-            navigator.clipboard.writeText(atInput.value).then(() => {
-                atCopyBtn.textContent = '已复制';
-                setTimeout(() => atCopyBtn.textContent = '复制', 2000);
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(input.value).then(() => {
+                copyBtn.textContent = '已复制';
+                setTimeout(() => copyBtn.textContent = '复制', 2000);
             });
         };
 
-        atContainer.appendChild(atInput);
-        atContainer.appendChild(atCopyBtn);
-        atSection.appendChild(atLabel);
-        atSection.appendChild(atContainer);
-        panel.appendChild(atSection);
-
-        // Refresh Token 区域
-        const rtSection = document.createElement('div');
-
-        const rtLabel = document.createElement('div');
-        rtLabel.textContent = 'Refresh Token (RT):';
-        rtLabel.style.marginBottom = '5px';
-        rtLabel.style.fontWeight = 'bold';
-
-        const rtContainer = document.createElement('div');
-        rtContainer.style.cssText = `
-            display: flex;
-            align-items: center;
-        `;
-
-        const rtInput = document.createElement('input');
-        rtInput.type = 'text';
-        rtInput.value = refreshToken || 'Not found';
-        rtInput.readOnly = true;
-        rtInput.style.cssText = `
-            flex: 1;
-            padding: 5px;
-            background: #333;
-            color: white;
-            border: 1px solid #555;
-            border-radius: 4px;
-            font-size: 11px;
-        `;
-
-        const rtCopyBtn = document.createElement('button');
-        rtCopyBtn.textContent = '复制';
-        rtCopyBtn.style.cssText = `
-            margin-left: 5px;
-            padding: 5px 10px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-        `;
-        rtCopyBtn.onclick = () => {
-            navigator.clipboard.writeText(rtInput.value).then(() => {
-                rtCopyBtn.textContent = '已复制';
-                setTimeout(() => rtCopyBtn.textContent = '复制', 2000);
-            });
-        };
-
-        rtContainer.appendChild(rtInput);
-        rtContainer.appendChild(rtCopyBtn);
-        rtSection.appendChild(rtLabel);
-        rtSection.appendChild(rtContainer);
-        panel.appendChild(rtSection);
+        container.appendChild(input);
+        container.appendChild(copyBtn);
+        tokenSection.appendChild(label);
+        tokenSection.appendChild(container);
+        panel.appendChild(tokenSection);
 
         // 拖拽功能
         let isDragging = false;
@@ -223,9 +260,15 @@
         document.body.appendChild(panel);
     }
 
-    // 页面加载完成后创建面板
-    window.addEventListener('load', createPanel);
-
-    // 如果页面是动态加载的，额外检查
-    setTimeout(createPanel, 2000);
+    // 页面加载完成后执行
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            // 自动复制Token
+            copySecureNextAuthToken();
+            // 添加手动复制按钮
+            addCopyButton();
+            // 创建面板（可选）
+            createPanel();
+        }, 2000); // 等待2秒确保Cookie已设置
+    });
 })();
