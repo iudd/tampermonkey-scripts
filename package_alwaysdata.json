@@ -1,0 +1,25 @@
+{
+  "name": "digen-auto-login",
+  "version": "1.0.0",
+  "description": "Digen.ai 自动化登录和签到脚本 - 针对 AlwaysData PaaS 优化",
+  "main": "digen_login_alwaysdata.js",
+  "scripts": {
+    "start": "node digen_login_alwaysdata.js",
+    "test": "node digen_login_alwaysdata.js"
+  },
+  "keywords": [
+    "playwright",
+    "automation",
+    "login",
+    "digen",
+    "alwaysdata"
+  ],
+  "author": "iudd",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18.19.0"
+  }
+}
