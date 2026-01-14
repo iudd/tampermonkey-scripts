@@ -1,8 +1,4 @@
-cat << 'EOF' > tele.py
-"""
-ZorvixHost Telegram Bot - LXC Container Management System
-A Telegram-based VPS management bot for LXC containers
-"""
+
 
 import asyncio
 import subprocess
@@ -523,4 +519,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
+
